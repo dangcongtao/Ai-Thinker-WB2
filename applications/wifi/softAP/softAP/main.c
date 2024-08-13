@@ -21,8 +21,8 @@
 #include <lwip/inet.h>
 #include <blog.h>
 
-#define AP_SSID "ai-thinker"
-#define AP_PWD "12345678"
+#define AP_SSID "taodc"
+#define AP_PWD "66668888"
 
 #define TAG "softAP"
 
@@ -116,6 +116,7 @@ static void event_cb_wifi_event(input_event_t* event, void* private_data)
             break;
         case CODE_WIFI_ON_AP_STA_ADD:
             blog_info("<<<<<<<<< station connent ap <<<<<<<<<<<");
+            /* device connect wifi */
 
             break;
         case CODE_WIFI_ON_AP_STA_DEL:
