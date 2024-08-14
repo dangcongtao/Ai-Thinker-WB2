@@ -38,6 +38,9 @@
 #define CARRIAGE_RETURN 13
 #define SERVER_PORT 80
 
+#define ROUTER_SSID "RD_Hunonic_Mesh"
+#define ROUTER_PWD "66668888"
+
 const static char http_html_hdr[] =
     "HTTP/1.1 200 OK\r\nContent-type: text/html\r\n\r\n";
 const static char http_index_hml[] = "<!DOCTYPE html>"
@@ -61,18 +64,48 @@ static uint8_t s_flag_stop_ap = false;
 static uint8_t s_flag_start_sta = false;
 static uint8_t s_flag_stop_sta = false;
 static uint32_t s_time = 0;
+static uint32_t s_time_2 = 0;
+static uint32_t s_time_start_ap = 0;
+
+static wifi_interface_t s_wifi_interface;
+
+/* *************** STA *************** */
+static void wifi_sta_connect(char* ssid, char* password)
+{
+    blog_info("will connect to wifi: [%s] - pass: [%s] ", ssid, password);
+    
+
+    s_wifi_interface = wifi_mgmr_sta_enable();
+    wifi_mgmr_sta_connect(s_wifi_interface, ssid, password, NULL, NULL, 0, 0);
+}
+
+static void wifi_sta_stop()
+{
+    blog_info("will deinit wifi sta ");
+
+    wifi_mgmr_sta_autoconnect_disable();
+    wifi_mgmr_sta_disconnect();
+    wifi_mgmr_sta_disable(s_wifi_interface);
+}
 
 static void request_stop_ap(void)
 {
-    s_flag_start_ap = false;
     s_flag_stop_ap = true;
-    s_time = aos_now_ms();
 }
 
 static void request_start_ap(void)
 {
-    s_flag_stop_ap = true;
     s_flag_start_ap = true;
+}
+
+static void request_start_sta(void)
+{
+    s_flag_start_sta = true;
+}
+
+static void request_stop_sta(void)
+{
+    s_flag_stop_sta = true;
 }
 
 static void get_body_msg(char *msg)
@@ -94,6 +127,7 @@ static void get_body_msg(char *msg)
     {
         blog_info("will connect wifi ");
         request_stop_ap();
+        s_time = aos_now_ms();
     }
 }
 
@@ -273,6 +307,14 @@ static void event_cb_wifi_event(input_event_t* event, void* private_data)
             blog_info("<<<<<<<<< station disconnet ap <<<<<<<<<<<");
 
             break;
+
+        case CODE_WIFI_ON_CONNECTED:
+        {
+            blog_info("wifi sta connected");
+            s_time_2 = aos_now_ms();
+        }
+        break;
+
         default:
             break;
 
@@ -311,11 +353,33 @@ static void main_task(void* pvParameters)
             wifi_ap_start();
         }
 
+        if (s_flag_start_sta)
+        {
+            s_flag_start_sta = false;
+            wifi_sta_connect(ROUTER_SSID, ROUTER_PWD);
+        }
+
+        if (s_flag_stop_sta)
+        {
+            s_flag_stop_sta = false;
+            wifi_sta_stop();
+        }
+
         if (aos_now_ms()-s_time > 3000 && s_time)
         {
             s_time = 0;
+            request_start_sta();
             blog_info("timer act ");
         }
+
+        if (aos_now_ms()-s_time_2 > 3000 && s_time_2)
+        {
+            s_time_2 = 0;
+            request_stop_sta();
+            blog_info("time2 act ");
+        }
+
+
         vTaskDelay(200);
     }
 }
