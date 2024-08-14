@@ -60,6 +60,9 @@ const static char http_index_hml[] = "<!DOCTYPE html>"
 
 static uint8_t s_flag_start_ap = false;
 static uint8_t s_flag_stop_ap = false;
+static uint8_t s_flag_stop_http_server = false;
+static uint8_t s_bind = false;
+
 /* */
 static uint8_t s_flag_start_sta = false;
 static uint8_t s_flag_stop_sta = false;
@@ -128,6 +131,7 @@ static void get_body_msg(char *msg)
         blog_info("will connect wifi ");
         request_stop_ap();
         s_time = aos_now_ms();
+        s_flag_stop_http_server = true;
     }
 }
 
@@ -173,22 +177,24 @@ void http_server_start(void *pvParameters)
     struct netconn *conn, *newconn;
     err_t err;
     conn = netconn_new(NETCONN_TCP);
-    err = netconn_bind(conn, NULL, SERVER_PORT);
-    if (err != ERR_OK)
-    {
-        blog_error("fail to bind ");
-    }
-    else
-    {
-        blog_info("bind success ");
-    }
+    netconn_bind(conn, NULL, SERVER_PORT);
     netconn_listen(conn);
     while (1)
     {
+        if (s_flag_stop_http_server)
+        {
+            s_flag_stop_http_server = false;
+            blog_warn("wanna delete task ");
+            netconn_close(conn);
+            netconn_delete(conn);
+            break;
+        }
+
         err = netconn_accept(conn, &newconn);
         if (err == ERR_OK)
         {
             web_http_server(newconn);
+            blog_warn("wanna delete connection ");
             netconn_delete(newconn);
         }
         else
@@ -198,8 +204,10 @@ void http_server_start(void *pvParameters)
             break;
         }
     }
-}
 
+    blog_warn("task deleted ");
+    vTaskDelete(NULL);
+}
 
 
 static wifi_conf_t ap_conf = {
@@ -376,9 +384,16 @@ static void main_task(void* pvParameters)
         {
             s_time_2 = 0;
             request_stop_sta();
+            s_time_start_ap = aos_now_ms();
             blog_info("time2 act ");
         }
 
+        if (aos_now_ms()-s_time_start_ap > 5000 && s_time_start_ap)
+        {
+            s_time_start_ap = 0;
+            request_start_ap();
+            blog_info("time3 act ");
+        }
 
         vTaskDelay(200);
     }
