@@ -55,6 +55,25 @@ const static char http_index_hml[] = "<!DOCTYPE html>"
                                      "</body>\n"
                                      "</html>\n";
 
+static uint8_t s_flag_start_ap = false;
+static uint8_t s_flag_stop_ap = false;
+/* */
+static uint8_t s_flag_start_sta = false;
+static uint8_t s_flag_stop_sta = false;
+static uint32_t s_time = 0;
+
+static void request_stop_ap(void)
+{
+    s_flag_start_ap = false;
+    s_flag_stop_ap = true;
+    s_time = aos_now_ms();
+}
+
+static void request_start_ap(void)
+{
+    s_flag_stop_ap = true;
+    s_flag_start_ap = true;
+}
 
 static void get_body_msg(char *msg)
 {
@@ -74,6 +93,7 @@ static void get_body_msg(char *msg)
     if (strstr(token, "ssid") != NULL)
     {
         blog_info("will connect wifi ");
+        request_stop_ap();
     }
 }
 
@@ -219,6 +239,12 @@ static void wifi_ap_start()
                                                                         //components/network/lwip_dhcpd/dhcp_server_raw.c：42   #define DHCPD_SERVER_IP "192.168.4.1"
 }
 
+static void wifi_ap_stop()
+{
+    wifi_mgmr_ap_stop(ap_interface);
+}
+
+/* will change name this callback */
 static void event_cb_wifi_event(input_event_t* event, void* private_data)
 {
     switch (event->code) {
@@ -256,6 +282,7 @@ static void event_cb_wifi_event(input_event_t* event, void* private_data)
 static void proc_main_entry(void* pvParameters)
 {
 
+    /* will change name this callback */
     aos_register_event_filter(EV_WIFI, event_cb_wifi_event, NULL);
     hal_wifi_start_firmware_task();
     aos_post_event(EV_WIFI, CODE_WIFI_ON_INIT_DONE, 0);
@@ -267,6 +294,31 @@ static void system_thread_init()
     /*nothing here*/
 }
 
+static void main_task(void* pvParameters)
+{
+    while (true)
+    {
+        if (s_flag_stop_ap)
+        {
+            s_flag_stop_ap = false;
+            blog_info("wanna stop ap");
+            wifi_ap_stop();
+        }
+        if (s_flag_start_ap)
+        {
+            s_flag_start_ap = false;
+            blog_info("wanna start ap ");
+            wifi_ap_start();
+        }
+
+        if (aos_now_ms()-s_time > 3000 && s_time)
+        {
+            s_time = 0;
+            blog_info("timer act ");
+        }
+        vTaskDelay(200);
+    }
+}
 void main()
 {
     system_thread_init();
@@ -275,4 +327,6 @@ void main()
     tcpip_init(NULL, NULL);
     puts("[OS] proc_main_entry task...");
     xTaskCreate(proc_main_entry, (char*)"main_entry", 1024, NULL, 15, NULL);
+
+    xTaskCreate(main_task, (char*)"main_entry", 1024, NULL, 1, NULL);
 }
