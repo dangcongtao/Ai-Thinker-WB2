@@ -434,11 +434,20 @@ void ai_http_update_ota(void *param)
 
     request = malloc(strlen("GET /") + strlen(ota_parame_t->resoure) + strlen(" HTTP/1.1\r\nHost: ")
         + strlen(ota_parame_t->host) + strlen("\r\n\r\n") + 1);
-    sprintf((char*)request, "GET /%s HTTP/1.1\r\nHost: %s\r\n\r\n", ota_parame_t->resoure, ota_parame_t->host);
+    sprintf((char*)request, "GET %s HTTP/1.1\r\nHost: %s\r\n\r\n", ota_parame_t->resoure, ota_parame_t->host);
 
     ret = write(fd, request, strlen((char *)request));
     if(ret < 0){
         printf("send http requst failed\r\n");
+        goto exit;
+    }
+
+    struct timeval timeout;
+    timeout.tv_sec = 60;
+    timeout.tv_usec = 0;
+    if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
+    {
+        printf("failed to set socket receiving timeout\n");
         goto exit;
     }
 
@@ -560,7 +569,7 @@ exit:
     printf("OTA Failed\r\n");
     if(fd >= 0)
         close(fd);
-    // ota_parame_t->rebooot_cb(false);
+    ota_parame_t->rebooot_cb(false);
     vTaskDelete(NULL);
 }
 
