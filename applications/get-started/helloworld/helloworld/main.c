@@ -9,8 +9,8 @@
 #include <aos/kernel.h>
 #include "bl_sys.h"
 
-#define PIN_CLK 3 /* same with demo */
-#define PIN_MOSI 12 /* demo use IO12 */
+#define PIN_CLK 3  /* same with demo */
+#define PIN_MOSI 5 /* demo use IO12 */
 #define PIN_CS 2
 
 static hosal_spi_dev_t spi0 = {
